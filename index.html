@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/3.1.2/rollups/tripledes.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-1BmE4kWBq78iYhFldvKuhfTAU6auU8tT94WrHftjDbrCEXSU1oBoqyl2QvZ6jIW3" crossorigin="anonymous">
+
+  <head>
+    <title>MUR Vaja 5 - Blockchain</title>
+    <style>
+      body { background: rgb(48,48,48); margin: 20px; padding-bottom: 3rem; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+      #center { display: block; background: rgba(0, 0, 0, 0.15); margin: auto; width: 50%; height: 50%;}
+      #form { margin: auto; background: rgba(0, 0, 0, 0.15); padding: 0.25rem; position: sticky; bottom: 0; left: 0; right: 0; display: flex; height: 3rem; box-sizing: border-box;}
+      #form > button { background: #333; border: none; padding: 0 1rem; margin: 0.25rem; border-radius: 3px; outline: none; color: #fff; }
+
+      #messages { list-style-type: none; margin: 0; padding: 0; background: rgba(0, 0, 0, 0.15); }
+      #messages > li { padding: 0.5rem 1rem; }
+      #messages > li:nth-child(odd) { background: rgba(0, 0, 0, 0.15); } 
+      #blocks > li:nth-child(odd) { background: rgba(0, 0, 0, 0.15); } 
+
+      #left {        
+        overflow: auto;
+        display: flex;
+        flex-direction: column-reverse;
+        height: 500px;
+        min-height: 50vh;
+        width: auto;
+        padding: 0.5rem 1rem;
+      }
+
+      #right {
+        overflow: auto;
+        display: flex;
+        flex-direction: column-reverse;
+        height: 500px;
+        min-height: 50vh;
+        width: auto;
+        padding: 0.5rem 1rem;
+      }      
+    </style>
+  </head>
+
+  <body>
+    <div class="container-fluid m-0 p-0">
+      <nav class="navbar sticky-top m-0 p-0">
+        <button id="StartMining" class="btn btn-dark">Start mining</button>
+      </nav>
+      <div class="row">
+        <div class="col-sm-4 col-md-4 m-0 p-0 overflow-auto">
+          <div id="left" style="background-color:rgba(0, 0, 0, 0.15);">
+            <ul id="messages"></ul>
+          </div>
+        </div>
+        <div class="col-sm-8 col-md-8 m-0 p-0 overflow-auto">
+          <div id="right" style="background-color:rgba(0, 0, 0, 0.20);">
+            <ul id="blocks"></ul>
+          </div>    
+        </div>
+      </div>
+      <nav class="navbar sticky-bottom navbar-light bg-light">
+        <a id="footer" class="navbar-brand" href="#"></a>
+      </nav>
+    </div>    
+  </body>
+
+  <script src="socket.io.js"></script>
+  <script src="socket.io-file-client.js"></script>
+      <script src="/socket.io/socket.io.js"></script>
+
+      <script>  
+        var key = "Jasa";  
+        var socket = io();
+        var input = document.getElementById('input');
+        var form = document.getElementById('form');
+
+        //append new message to UL
+        function addMessage(msg, color = "white") {
+          var item = document.createElement('li');
+          var d1 = document.createElement('div');
+          d1.innerHTML = msg;
+          //d1.setAttribute("color", color);
+          d1.style.color = color;
+          item.appendChild(d1);
+          messages.appendChild(item);
+          var elem = document.getElementById("right");  //auto scroll to bottom
+          elem.scrollTop = elem.scrollHeight;
+        };
+
+        function addMessageBlock(msg, color = "white") {
+          var item = document.createElement('li');
+          var d1 = document.createElement('div');
+          d1.innerHTML = msg;          
+          d1.style.color = color;   
+          item.appendChild(d1);
+          blocks.appendChild(item);
+          var elem = document.getElementById("left");  //auto scroll to bottom
+          elem.scrollTop = elem.scrollHeight;
+        };
+
+        //input port and check input status
+        window.onload = () => {
+          let text, inputStatus;
+          let port = prompt("Port: ");
+          if (port == null || port == ""){
+            text = "User cancelled the prompt.";
+            inputStatus = false;
+            return;
+          }
+          else {
+            text = 'Connected';
+            inputStatus = true;
+            document.getElementById("footer").innerHTML = "Connected to port " + port;            
+          }
+          addMessage(text);
+          console.log("Connected");
+          if(inputStatus){
+            socket.emit('client', port);
+          }
+          text="";
+        }
+
+        document.getElementById('StartMining').addEventListener('click', function(e) {
+          e.preventDefault();
+          console.log('started mining');
+          document.getElementById('StartMining').setAttribute("hidden", "");
+          socket.emit('mine', 'message');
+        });
+
+        function blockToString(block){
+          var str = "";
+          str += `Block: ${block.index}<br>\nTimestamp: ${block.timestamp}<br>\nData: ${block.data}<br>\nDifficulty: ${block.difficulty}<br>\nNonce: ${block.nonce}<br>\nPrevious Hash: ${block.previousHash}<br>\nHash: ${block.hash}<br>\n---------------------------------------`;
+          return str;
+        }
+
+        //add message to chat
+        socket.on('message', msg => {
+          console.log(`message ${msg}`);
+          addMessage(msg);
+        });
+
+        socket.on('rejectMessage', msg => {
+          console.log(`reject message ${msg}`);
+          addMessage(msg, "red");
+        });
+
+        socket.on('acceptMessage', msg => {
+          console.log(`accept message ${msg}`);
+          addMessage(msg, "green");
+        });
+
+        socket.on('acceptBlockMessage', msg => {
+          console.log(`accept block message ${blockToString(msg)}`);
+          addMessageBlock(blockToString(msg), "green");
+        });
+
+        socket.on('rejectBlockMessage', msg => {
+          console.log(`accept block message ${blockToString(msg)}`);
+          addMessageBlock(blockToString(msg), "red");
+        });
+
+        socket.on('client', (msg) => {
+          console.log("Peer connected");
+        });
+
+        socket.on('blockchain', (chain) => {
+          console.log("blockchain: " + chain);
+          var str = "";
+          for (let i = 0; i < chain.length; i++){
+            str = str + blockToString(chain[i]) + "<br>\n";
+          }
+          addMessageBlock(str, "green");
+          console.log(`blockchain string: ${str}`);
+        });
+
+      </script>
+</html>
